@@ -75,6 +75,7 @@ import org.futo.inputmethod.latin.xlm.ModelPaths
 import org.futo.inputmethod.updates.openURI
 import org.futo.voiceinput.shared.BUILTIN_ENGLISH_MODEL
 import org.futo.voiceinput.shared.types.ModelFileFile
+import org.futo.voiceinput.shared.types.ModelFormat
 import org.futo.voiceinput.shared.types.ModelLoader
 import java.io.BufferedReader
 import java.io.File
@@ -499,7 +500,8 @@ fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
     val array = ByteArray(4)
     inputStream.read(array)
 
-    val voiceInputMagic = 0x6c6d6767.toUInt()
+    val voiceInputMagic = ModelFormat.WHISPER_GGML_MAGIC
+    val whistleMagic = ModelFormat.WHISTLE_CACT_MAGIC
     val transformerMagic = 0x47475546.toUInt()
     val dictionaryMagic = 0x9bc13afe.toUInt()
     val mozcMagic = 0xef4d4f5a.toUInt()
@@ -508,6 +510,7 @@ fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
 
     return when {
         magic == voiceInputMagic -> FileKindAndInfo(FileKind.VoiceInput, null, null)
+        magic == whistleMagic -> FileKindAndInfo(FileKind.VoiceInput, "Whistle", null)
         magic == transformerMagic -> FileKindAndInfo(FileKind.Transformer, null, null)
         magic == mozcMagic -> {
             FileKindAndInfo(

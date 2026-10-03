@@ -4,6 +4,7 @@ import androidx.annotation.Keep
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
+import org.futo.voiceinput.shared.types.VoiceInputModel
 import java.nio.Buffer
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -16,12 +17,12 @@ enum class DecodingMode(val value: Int) {
 
 class BailLanguageException(val language: String): Exception()
 class InferenceCancelledException : Exception()
-class InvalidModelException : Exception("The Whisper model could not be loaded from the given buffer")
+class InvalidModelException(message: String = "The Whisper model could not be loaded from the given buffer") : Exception(message)
 
 @Keep
 class WhisperGGML(
     modelBuffer: Buffer
-) {
+) : VoiceInputModel {
     private var handle: Long = 0L
     init {
         handle = openFromBufferNative(modelBuffer)
@@ -36,6 +37,32 @@ class WhisperGGML(
     @Keep
     private fun invokePartialResult(text: String) {
         partialResultCallback(text.trim())
+    }
+
+    @Throws(BailLanguageException::class, InferenceCancelledException::class)
+    override suspend fun infer(
+        samples: FloatArray,
+        glossary: List<String>,
+        languages: Array<String>,
+        bailLanguages: Array<String>,
+        suppressNonSpeechTokens: Boolean,
+        partialResultCallback: (String) -> Unit
+    ): String {
+        val prompt = if(glossary.isNotEmpty()) {
+            "(Glossary: " + glossary.joinToString(separator = ", ") + ")"
+        } else {
+            ""
+        }
+
+        return infer(
+            samples = samples,
+            prompt = prompt,
+            languages = languages,
+            bailLanguages = bailLanguages,
+            decodingMode = DecodingMode.BeamSearch5,
+            suppressNonSpeechTokens = suppressNonSpeechTokens,
+            partialResultCallback = partialResultCallback
+        )
     }
 
     // empty languages = autodetect any language
@@ -73,12 +100,12 @@ class WhisperGGML(
         }
     }
 
-    fun cancel() {
+    override fun cancel() {
         if(handle == 0L) return
         cancelNative(handle)
     }
 
-    suspend fun close() = withContext(inferenceContext) {
+    override suspend fun close() = withContext(inferenceContext) {
         if(handle != 0L) {
             closeNative(handle)
         }
