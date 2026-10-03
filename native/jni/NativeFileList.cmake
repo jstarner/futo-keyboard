@@ -15,6 +15,7 @@ set(LATIN_IME_JNI_SRC_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_inputmethod_latin_xlm_AdapterTrainer.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_inputmethod_latin_xlm_ModelInfoLoader.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_voiceinput_WhisperGGML.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_voiceinput_WhistleModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/jni_common.cpp)
 
 set(LATIN_IME_CORE_INCLUDE

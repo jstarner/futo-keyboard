@@ -87,4 +87,15 @@ if(NOT EXT_BUILD)
             jni_latinime_common_static
             log
             dl)
+
+    # Cactus Needle engine for Whistle speech models. Prebuilt only for ARM ABIs;
+    # elsewhere the JNI glue compiles stubs.
+    set(NEEDLE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/prebuilt/needle)
+    target_include_directories(jni_latinime PRIVATE ${NEEDLE_DIR}/include)
+    if(EXISTS ${NEEDLE_DIR}/${ANDROID_ABI}/libneedle.a)
+        add_library(needle STATIC IMPORTED)
+        set_target_properties(needle PROPERTIES IMPORTED_LOCATION ${NEEDLE_DIR}/${ANDROID_ABI}/libneedle.a)
+        target_link_libraries(jni_latinime needle)
+        target_compile_definitions(jni_latinime PRIVATE HAVE_NEEDLE=1)
+    endif()
 endif()
