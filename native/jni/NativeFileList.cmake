@@ -16,6 +16,7 @@ set(LATIN_IME_JNI_SRC_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_inputmethod_latin_xlm_ModelInfoLoader.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_voiceinput_WhisperGGML.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_voiceinput_WhistleModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/org_futo_voiceinput_BarkModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/jni_common.cpp)
 
 set(LATIN_IME_CORE_INCLUDE
@@ -41,6 +42,13 @@ set(LATIN_IME_CORE_SRC_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml/common.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml/LanguageModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/ggml/ModelMeta.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/bark/bark_format.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/bark/bark_model.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/bark/bark_ops.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/xz-embedded/xz_crc32.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/xz-embedded/xz_crc64.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/xz-embedded/xz_dec_lzma2.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/xz-embedded/xz_dec_stream.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/protobuf-lite/arena.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/protobuf-lite/arenastring.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/src/third_party/protobuf-lite/bytestream.cc

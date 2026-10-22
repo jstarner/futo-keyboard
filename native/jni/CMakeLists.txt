@@ -62,6 +62,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/NativeFileList.cmake)
 add_library(jni_latinime_common_static STATIC ${LATIN_IME_CORE_SRC_FILES})
 
 target_include_directories(jni_latinime_common_static PRIVATE ${LATIN_IME_CORE_INCLUDE})
+# Bark model files use xz blobs with CRC64 checks
+target_compile_definitions(jni_latinime_common_static PRIVATE XZ_USE_CRC64)
 if(EXT_BUILD)
     target_include_directories(jni_latinime_common_static PRIVATE ${JNI_INCLUDE_DIRS})
 endif()

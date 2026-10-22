@@ -27,6 +27,7 @@
 #include "org_futo_inputmethod_latin_xlm_AdapterTrainer.h"
 #include "org_futo_voiceinput_WhisperGGML.h"
 #include "org_futo_voiceinput_WhistleModel.h"
+#include "org_futo_voiceinput_BarkModel.h"
 #include "org_futo_inputmethod_latin_xlm_ModelInfoLoader.h"
 
 /*
@@ -78,6 +79,10 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
     }
     if (!voiceinput::register_WhistleModel(env)) {
         AKLOGE("ERROR: WhistleModel native registration failed");
+        return -1;
+    }
+    if (!voiceinput::register_BarkModel(env)) {
+        AKLOGE("ERROR: BarkModel native registration failed");
         return -1;
     }
     /* success -- return valid version number */
