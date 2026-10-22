@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import org.futo.voiceinput.shared.ggml.InferenceCancelledException
 import org.futo.voiceinput.shared.ggml.InvalidModelException
 import org.futo.voiceinput.shared.types.VoiceInputModel
+import org.futo.voiceinput.shared.util.splitIntoWindows
 import org.json.JSONObject
 import java.nio.Buffer
 
@@ -25,10 +26,6 @@ private const val SAMPLE_RATE = 16000
 
 // The engine transcribes at most 30 seconds per call
 private const val MAX_WINDOW_SAMPLES = 30 * SAMPLE_RATE
-
-// Longer clips are cut at the quietest 100ms frame within the last 2 seconds of each window
-private const val SPLIT_SEARCH_SAMPLES = 2 * SAMPLE_RATE
-private const val SPLIT_FRAME_SAMPLES = SAMPLE_RATE / 10
 
 @Keep
 internal object WhistleNative {
@@ -87,7 +84,7 @@ class WhistleModel(
         val language = languages.singleOrNull()?.takeIf { it in SUPPORTED_LANGUAGES } ?: ""
         val keywords = glossary.joinToString(separator = "\n")
 
-        val windows = splitIntoWindows(samples)
+        val windows = splitIntoWindows(samples, MAX_WINDOW_SAMPLES)
         val texts = mutableListOf<String>()
         for(window in windows) {
             if(cancelled) throw InferenceCancelledException()
@@ -133,45 +130,4 @@ class WhistleModel(
         // Buffer of the model currently loaded in the engine. Only accessed on whistleContext
         private var engineBuffer: Buffer? = null
     }
-}
-
-private fun splitIntoWindows(samples: FloatArray): List<IntRange> {
-    val windows = mutableListOf<IntRange>()
-
-    var start = 0
-    while(samples.size - start > MAX_WINDOW_SAMPLES) {
-        val limit = start + MAX_WINDOW_SAMPLES
-        val end = quietestCut(samples, limit - SPLIT_SEARCH_SAMPLES, limit)
-        windows.add(start until end)
-        start = end
-    }
-
-    if(start < samples.size) {
-        windows.add(start until samples.size)
-    }
-
-    return windows
-}
-
-// Returns the middle of the lowest-energy frame in [from, to)
-private fun quietestCut(samples: FloatArray, from: Int, to: Int): Int {
-    var best = to
-    var bestEnergy = Double.MAX_VALUE
-
-    var frameStart = from
-    while(frameStart + SPLIT_FRAME_SAMPLES <= to) {
-        var energy = 0.0
-        for(i in frameStart until frameStart + SPLIT_FRAME_SAMPLES) {
-            energy += samples[i] * samples[i]
-        }
-
-        if(energy < bestEnergy) {
-            bestEnergy = energy
-            best = frameStart + SPLIT_FRAME_SAMPLES / 2
-        }
-
-        frameStart += SPLIT_FRAME_SAMPLES / 2
-    }
-
-    return best
 }

@@ -2,6 +2,7 @@ package org.futo.voiceinput.shared.types
 
 import android.content.Context
 import androidx.annotation.StringRes
+import org.futo.voiceinput.shared.bark.BarkModel
 import org.futo.voiceinput.shared.ggml.WhisperGGML
 import org.futo.voiceinput.shared.whistle.WhistleModel
 import java.io.File
@@ -33,7 +34,9 @@ private fun loadMappedFile(context: Context, filePath: String): MappedByteBuffer
 }
 
 /** Picks the backend for a model file based on its magic */
-private fun loadVoiceInputModel(buffer: MappedByteBuffer): VoiceInputModel {
+private fun loadVoiceInputModel(context: Context, buffer: MappedByteBuffer): VoiceInputModel {
+    if(ModelFormat.isBark(buffer)) return BarkModel(context, buffer)
+
     return when(ModelFormat.magicOf(buffer)) {
         ModelFormat.WHISTLE_CACT_MAGIC -> WhistleModel(buffer)
         else -> WhisperGGML(buffer)
@@ -67,7 +70,7 @@ internal class ModelBuiltInAsset(
 
     override fun load(context: Context): VoiceInputModel {
         val file = loadMappedFile(context, ggmlFile)
-        return loadVoiceInputModel(file)
+        return loadVoiceInputModel(context, file)
     }
 
     override fun key(context: Context): Any {
@@ -108,7 +111,7 @@ internal class ModelDownloadable(
 
     override fun load(context: Context): VoiceInputModel {
         val file = context.tryOpenDownloadedModel(ggmlFile)
-        return loadVoiceInputModel(file)
+        return loadVoiceInputModel(context, file)
     }
 
     override fun key(context: Context): Any {
@@ -130,7 +133,7 @@ public class ModelFileFile(
 
     override fun load(context: Context): VoiceInputModel {
         val file = tryOpenDownloadedModel(file)
-        return loadVoiceInputModel(file)
+        return loadVoiceInputModel(context, file)
     }
 
     override fun key(context: Context): Any {

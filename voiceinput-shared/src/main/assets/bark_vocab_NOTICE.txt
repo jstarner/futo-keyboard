@@ -1,0 +1,10 @@
+bark_vocab.txt is the tokenizer vocabulary of nvidia/parakeet-tdt-0.6b-v3
+(https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3, revision
+541d1f99c6b0c3cd0b11a95167540bb8edefd82b), (c) NVIDIA Corporation,
+licensed under CC-BY-4.0 (https://creativecommons.org/licenses/by/4.0/).
+
+Changes: extracted from tokenizer.json as one token per line, in id order, with
+special tokens replaced by empty lines.
+
+Bark speech models (https://huggingface.co/ConwayResearch/Underdog-Bark-3.0)
+use this tokenizer but don't include it.

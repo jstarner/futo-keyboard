@@ -69,7 +69,7 @@ Build-time `BuildConfig` fields (`IS_PLAYSTORE_BUILD`, `UPDATE_CHECKING`, `ENABL
 
 **Native (`native/jni`).** One `libjni_latinime` library contains the AOSP dictionary and suggestion engine (`src/dictionary`, `src/suggest`), GGML, sentencepiece, and Whisper. JNI glue files are named after their Java/Kotlin class (for example `org_futo_inputmethod_latin_xlm_LanguageModel.cpp`). Native source files are listed in `NativeFileList.cmake`. Native code always compiles with optimization because GGML is unusably slow without it.
 
-**Voice input.** The `voiceinput-shared/` library module holds Whisper-based recognition (`AudioRecognizer`, `ggml/WhisperGGML.kt`, `whisper/`). Its models come from the `voiceinput-shared/src/main/ml` submodule. The keyboard side is `uix/actions/VoiceInputAction.kt`.
+**Voice input.** The `voiceinput-shared/` library module holds speech recognition (`AudioRecognizer`, `whisper/`). Engines implement `types/VoiceInputModel` and are picked from the model file's header in `types/ModelData.kt`: Whisper (`ggml/WhisperGGML.kt`), Whistle (`whistle/`, prebuilt Cactus engine) and Bark (`bark/`, own engine in `native/jni/src/bark`). Built-in models come from the `voiceinput-shared/src/main/ml` submodule; others are imported per language through `ImportResourceActivity`. The keyboard side is `uix/actions/VoiceInputAction.kt`.
 
 ## Project conventions
 

@@ -533,8 +533,22 @@ fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
         (magic == 0x1f8b0808.toUInt()) || (magic == 0x1f8b0800.toUInt()) || (magic == 0x64696374.toUInt()) ->
             FileKindAndInfo(FileKind.Invalid, null, null, invalidKindHint = InvalidFileHint.ImportedWordListInsteadOfDict)
 
+        isBarkFile(array, inputStream) -> FileKindAndInfo(FileKind.VoiceInput, "Bark", null)
+
         else -> FileKindAndInfo(FileKind.Invalid, null, null)
     }
+}
+
+// Bark files have no fixed magic, so this reads further into the header
+private fun isBarkFile(start: ByteArray, inputStream: InputStream): Boolean {
+    val header = start.copyOf(ModelFormat.BARK_PROBE_SIZE)
+    var filled = start.size
+    while(filled < header.size) {
+        val n = inputStream.read(header, filled, header.size - filled)
+        if(n <= 0) break
+        filled += n
+    }
+    return ModelFormat.isBark(header.copyOf(filled))
 }
 
 object ResourceHelper {
