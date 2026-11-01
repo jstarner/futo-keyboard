@@ -1,0 +1,35 @@
+# libjni_transcribe.so: transcribe.cpp (GGUF speech models) behind a small JNI layer.
+#
+# This is separate from libjni_latinime because transcribe.cpp brings its own, much
+# newer ggml with the same symbol names as the one in native/jni/src/ggml. Everything
+# except the JNI entry points stays hidden, see transcribe_jni.map.
+
+# Debug builds included: ggml is unusably slow without optimization
+set(CMAKE_C_FLAGS_DEBUG   "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-O3 -DNDEBUG")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} -fvisibility=hidden -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -ffunction-sections -fdata-sections")
+
+set(TRANSCRIBE_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(TRANSCRIBE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(TRANSCRIBE_BUILD_SHARED   OFF CACHE BOOL "" FORCE)
+set(TRANSCRIBE_INSTALL        OFF CACHE BOOL "" FORCE)
+set(TRANSCRIBE_USE_SYSTEM_BLAS OFF CACHE BOOL "" FORCE)
+set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
+# transcribe_jni.cpp refuses to open a model on CPUs without these features
+set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
+
+# transcribe.cpp's public include path uses CMAKE_SOURCE_DIR, which assumes it is the top-level project
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/transcribe.cpp/include)
+
+add_subdirectory(transcribe.cpp EXCLUDE_FROM_ALL)
+
+add_library(jni_transcribe SHARED transcribe_jni.cpp)
+
+target_link_libraries(jni_transcribe PRIVATE transcribe log)
+target_link_options(jni_transcribe PRIVATE
+        -Wl,--exclude-libs,ALL
+        -Wl,--gc-sections
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/transcribe_jni.map)
+set_target_properties(jni_transcribe PROPERTIES
+        LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/transcribe_jni.map)

@@ -178,6 +178,8 @@ fun ImportScreen(fileKind: FileKindAndInfo, onApply: (FileKindAndInfo, InputMeth
             if(fileKind.invalidKindHint == InvalidFileHint.ImportedWordListInsteadOfDict) {
                 Text(stringResource(R.string.resource_importer_error_wordlist_1))
                 Tip(stringResource(R.string.resource_importer_error_wordlist_2))
+            } else if(fileKind.invalidKindHint == InvalidFileHint.UnconvertedParakeetGGUF) {
+                Text(stringResource(R.string.resource_importer_error_unconverted_parakeet))
             } else {
                 Text(stringResource(R.string.resource_importer_error_invalid_fiile))
             }
@@ -287,7 +289,8 @@ fun FileKind.extension(): String {
 }
 
 enum class InvalidFileHint {
-    ImportedWordListInsteadOfDict
+    ImportedWordListInsteadOfDict,
+    UnconvertedParakeetGGUF
 }
 
 data class FileKindAndInfo(
@@ -502,7 +505,7 @@ fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
 
     val voiceInputMagic = ModelFormat.WHISPER_GGML_MAGIC
     val whistleMagic = ModelFormat.WHISTLE_CACT_MAGIC
-    val transformerMagic = 0x47475546.toUInt()
+    val ggufMagic = ModelFormat.GGUF_MAGIC
     val dictionaryMagic = 0x9bc13afe.toUInt()
     val mozcMagic = 0xef4d4f5a.toUInt()
 
@@ -511,7 +514,16 @@ fun determineFileKind(inputStream: InputStream): FileKindAndInfo {
     return when {
         magic == voiceInputMagic -> FileKindAndInfo(FileKind.VoiceInput, null, null)
         magic == whistleMagic -> FileKindAndInfo(FileKind.VoiceInput, "Whistle", null)
-        magic == transformerMagic -> FileKindAndInfo(FileKind.Transformer, null, null)
+        magic == ggufMagic -> {
+            val info = ModelFormat.readGGUFInfo(inputStream)
+            if(info.isSpeechModel) {
+                FileKindAndInfo(FileKind.VoiceInput, info.name, null)
+            } else if(info.isUnconvertedSpeechModel) {
+                FileKindAndInfo(FileKind.Invalid, info.name, null, invalidKindHint = InvalidFileHint.UnconvertedParakeetGGUF)
+            } else {
+                FileKindAndInfo(FileKind.Transformer, null, null)
+            }
+        }
         magic == mozcMagic -> {
             FileKindAndInfo(
                 FileKind.Dictionary,
@@ -947,6 +959,8 @@ class ImportResourceActivity : ComponentActivity() {
     private fun detectItemBeingImported(): ItemBeingImported? {
         val languageResource = getInputStream()?.use { determineFileKind(it) }
         if(languageResource != null && languageResource.kind != FileKind.Invalid) return ItemBeingImported.LanguageResource(languageResource)
+        // No other kind of file is GGUF, so say how to fix it
+        if(languageResource?.invalidKindHint == InvalidFileHint.UnconvertedParakeetGGUF) return ItemBeingImported.LanguageResource(languageResource)
 
         val chineseDictionary = getInputStream()?.use { detectChineseDict(it) }
         if(chineseDictionary != null) return ItemBeingImported.LanguageResource(FileKindAndInfo(

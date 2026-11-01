@@ -30,6 +30,11 @@ else()
     set(CMAKE_CXX_FLAGS_DEBUG "-O1 -ggdb")
 endif()
 
+# Added before the compile options below, which are for this project's own code only
+if(NOT EXT_BUILD AND ANDROID_ABI STREQUAL "arm64-v8a")
+    add_subdirectory(../transcribe transcribe)
+endif()
+
 add_compile_options(
         -Wall -Wextra -Weffc++ -Wformat=2 -Wcast-qual -Wcast-align
         -Wwrite-strings -Wfloat-equal -Wpointer-arith -Winit-self

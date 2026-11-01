@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.StringRes
 import org.futo.voiceinput.shared.bark.BarkModel
 import org.futo.voiceinput.shared.ggml.WhisperGGML
+import org.futo.voiceinput.shared.transcribe.TranscribeModel
 import org.futo.voiceinput.shared.whistle.WhistleModel
 import java.io.File
 import java.io.FileInputStream
@@ -89,9 +90,13 @@ private fun tryOpenDownloadedModel(file: File): MappedByteBuffer {
     ).load()
 }
 
+/** GGUF models go to transcribe.cpp, which maps the file itself; the rest are read through a mapped buffer */
 @Throws(IOException::class)
-private fun Context.tryOpenDownloadedModel(pathStr: String): MappedByteBuffer {
-    return tryOpenDownloadedModel(File(filesDir, pathStr))
+private fun loadVoiceInputModel(context: Context, file: File): VoiceInputModel {
+    return when(ModelFormat.magicOf(file)) {
+        ModelFormat.GGUF_MAGIC -> TranscribeModel(file.absolutePath)
+        else -> loadVoiceInputModel(context, tryOpenDownloadedModel(file))
+    }
 }
 
 internal class ModelDownloadable(
@@ -110,8 +115,7 @@ internal class ModelDownloadable(
     }
 
     override fun load(context: Context): VoiceInputModel {
-        val file = context.tryOpenDownloadedModel(ggmlFile)
-        return loadVoiceInputModel(context, file)
+        return loadVoiceInputModel(context, File(context.filesDir, ggmlFile))
     }
 
     override fun key(context: Context): Any {
@@ -132,7 +136,6 @@ public class ModelFileFile(
     }
 
     override fun load(context: Context): VoiceInputModel {
-        val file = tryOpenDownloadedModel(file)
         return loadVoiceInputModel(context, file)
     }
 
