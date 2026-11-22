@@ -22,8 +22,9 @@ import java.nio.ByteOrder
 private const val TAG = "TranscribeModelTest"
 
 /**
- * The transcription test needs a model and a 16 kHz mono 16-bit sample.wav, pushed to
- * /sdcard/Android/data/<app id>/files/, and is skipped without them.
+ * The transcription tests need a model and a 16 kHz mono 16-bit sample.wav, pushed to
+ * /sdcard/Android/data/<app id>/files/, and are skipped without them. The vocabulary test
+ * also needs vocabulary.txt (one term per line) and transcribes every vocab*.wav.
  */
 @RunWith(AndroidJUnit4::class)
 class TranscribeModelTest {
@@ -143,5 +144,26 @@ class TranscribeModelTest {
             logProcessMemory("Finished ${modelFile.name}")
             model.close()
         }
+    }
+
+    @Test
+    fun transcribesWithVocabulary() = runBlocking {
+        val dir = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
+        val vocabularyFile = File(dir, "vocabulary.txt")
+        val clips = dir.listFiles { file -> file.name.startsWith("vocab") && file.name.endsWith(".wav") }.orEmpty()
+        val modelFile = dir.listFiles { file -> file.name.endsWith(".gguf") }.orEmpty().minByOrNull { it.length() }
+        assumeTrue(vocabularyFile.exists() && clips.isNotEmpty() && modelFile != null)
+
+        val vocabulary = vocabularyFile.readLines().filter { it.isNotBlank() }
+        val model = TranscribeModel(modelFile!!.absolutePath)
+        for(clip in clips.sortedBy { it.name }) {
+            val samples = readSamples(clip)
+            val plain = model.infer(samples, listOf(), arrayOf(), arrayOf(), false) { }
+            val withVocabulary = model.infer(samples, vocabulary, arrayOf(), arrayOf(), false) { }
+            Log.i(TAG, "${clip.name} without: $plain")
+            Log.i(TAG, "${clip.name} with:    $withVocabulary")
+            assertTrue(withVocabulary.isNotBlank())
+        }
+        model.close()
     }
 }

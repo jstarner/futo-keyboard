@@ -1,5 +1,6 @@
 #include <atomic>
 #include <string>
+#include <vector>
 
 #include <android/log.h>
 #include <asm/hwcap.h>
@@ -73,10 +74,34 @@ Java_org_futo_voiceinput_shared_transcribe_TranscribeNative_openNative(JNIEnv *e
     return reinterpret_cast<jlong>(state);
 }
 
-// Returns null if cancelled
+// Splits UTF-8 terms separated by '\n'
+static std::vector<std::string> splitTerms(JNIEnv *env, jbyteArray terms) {
+    std::vector<std::string> out;
+    if(terms == nullptr) return out;
+
+    const jsize n = env->GetArrayLength(terms);
+    std::string all(static_cast<size_t>(n), '\0');
+    env->GetByteArrayRegion(terms, 0, n, reinterpret_cast<jbyte *>(&all[0]));
+
+    size_t start = 0;
+    while(start <= all.size()) {
+        size_t end = all.find('\n', start);
+        if(end == std::string::npos) end = all.size();
+        if(end > start) out.emplace_back(all, start, end - start);
+        start = end + 1;
+    }
+    return out;
+}
+
+// Returns null if cancelled. vocabulary: custom terms in priority order, UTF-8, one per line
 extern "C" JNIEXPORT jstring JNICALL
-Java_org_futo_voiceinput_shared_transcribe_TranscribeNative_transcribeNative(JNIEnv *env, jclass, jlong handle, jfloatArray samples) {
+Java_org_futo_voiceinput_shared_transcribe_TranscribeNative_transcribeNative(JNIEnv *env, jclass, jlong handle, jfloatArray samples, jbyteArray vocabulary) {
     auto *state = reinterpret_cast<TranscribeState *>(handle);
+
+    const std::vector<std::string> terms = splitTerms(env, vocabulary);
+    std::vector<const char *> term_ptrs;
+    term_ptrs.reserve(terms.size());
+    for(const std::string &term : terms) term_ptrs.push_back(term.c_str());
 
     const jsize n_samples = env->GetArrayLength(samples);
     jfloat *pcm = env->GetFloatArrayElements(samples, nullptr);
@@ -85,8 +110,17 @@ Java_org_futo_voiceinput_shared_transcribe_TranscribeNative_transcribeNative(JNI
     transcribe_run_params run_params;
     transcribe_run_params_init(&run_params);
     run_params.timestamps = TRANSCRIBE_TIMESTAMPS_NONE;
+    run_params.vocabulary = term_ptrs.empty() ? nullptr : term_ptrs.data();
+    run_params.n_vocabulary = static_cast<int32_t>(term_ptrs.size());
 
-    const transcribe_status status = transcribe_run(state->session, pcm, n_samples, &run_params);
+    transcribe_status status = transcribe_run(state->session, pcm, n_samples, &run_params);
+    if(status == TRANSCRIBE_ERR_INVALID_ARG && run_params.n_vocabulary > 0) {
+        // A term the tokenizer refuses (such as a control token) fails the whole run
+        __android_log_print(ANDROID_LOG_WARN, TAG, "Vocabulary rejected, transcribing without it");
+        run_params.vocabulary = nullptr;
+        run_params.n_vocabulary = 0;
+        status = transcribe_run(state->session, pcm, n_samples, &run_params);
+    }
     env->ReleaseFloatArrayElements(samples, pcm, JNI_ABORT);
 
     if(status == TRANSCRIBE_ERR_ABORTED) return nullptr;

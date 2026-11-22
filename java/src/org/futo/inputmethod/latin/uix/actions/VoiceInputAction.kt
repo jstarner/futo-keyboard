@@ -134,7 +134,9 @@ private class VoiceInputActionWindow(
         val languageSpecificModels = mutableMapOf<Language, ModelLoader>()
         val allowedLanguages = locales.mapNotNull { getLanguageFromWhisperString(it.language) }.toSet()
         val glossary = if(usePersonalDict) {
-            state.userDictionaryObserver.getWords(locales).filter { it.shortcut.isNullOrEmpty() }.map { it.word }
+            // Most used first: engines may only take the first few
+            state.userDictionaryObserver.getWords(locales).filter { it.shortcut.isNullOrEmpty() }
+                .sortedByDescending { it.frequency }.map { it.word }
         } else {
             emptyList()
         }

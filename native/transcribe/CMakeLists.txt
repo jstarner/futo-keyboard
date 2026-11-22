@@ -21,7 +21,9 @@ set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
 
 # Local changes to transcribe.cpp, applied to the submodule checkout once (see patches/)
 find_package(Git REQUIRED)
-file(GLOB TRANSCRIBE_PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch)
+file(GLOB TRANSCRIBE_PATCHES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch)
+# Configure again when a patch changes, so it gets applied
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${TRANSCRIBE_PATCHES})
 list(SORT TRANSCRIBE_PATCHES)
 foreach(patch ${TRANSCRIBE_PATCHES})
     execute_process(COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${patch}

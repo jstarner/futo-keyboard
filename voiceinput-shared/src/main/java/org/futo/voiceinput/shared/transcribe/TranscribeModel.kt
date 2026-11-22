@@ -16,6 +16,10 @@ private const val TAG = "TranscribeModel"
 private const val SAMPLE_RATE = 16000
 private const val NUM_THREADS = 4
 
+// transcribe.cpp's Parakeet rescoring takes up to 64 terms of up to 128 bytes, and ignores the rest
+private const val MAX_VOCABULARY_TERMS = 64
+private const val MAX_TERM_BYTES = 128
+
 @OptIn(DelicateCoroutinesApi::class)
 private val transcribeContext = newSingleThreadContext("transcribe-inference")
 
@@ -26,7 +30,7 @@ internal object TranscribeNative {
     }
 
     @JvmStatic external fun openNative(path: String, threads: Int): Long
-    @JvmStatic external fun transcribeNative(handle: Long, samples: FloatArray): String?
+    @JvmStatic external fun transcribeNative(handle: Long, samples: FloatArray, vocabulary: ByteArray?): String?
     @JvmStatic external fun resetCancelNative(handle: Long)
     @JvmStatic external fun cancelNative(handle: Long)
     @JvmStatic external fun closeNative(handle: Long)
@@ -34,7 +38,8 @@ internal object TranscribeNative {
 
 /**
  * GGUF speech model running on transcribe.cpp. Weights are memory mapped from [path].
- * The glossary, language and symbol suppression options are ignored, and there are no partial results.
+ * The glossary is used as custom vocabulary (Parakeet rescores words that sound like a term).
+ * The language and symbol suppression options are ignored, and there are no partial results.
  */
 class TranscribeModel(
     path: String
@@ -76,9 +81,11 @@ class TranscribeModel(
         TranscribeNative.resetCancelNative(currentHandle)
         ensureActive()
 
+        val vocabulary = vocabularyBytes(glossary)
+
         val start = SystemClock.elapsedRealtime()
         val text = try {
-            TranscribeNative.transcribeNative(currentHandle, samples) ?: throw InferenceCancelledException()
+            TranscribeNative.transcribeNative(currentHandle, samples, vocabulary) ?: throw InferenceCancelledException()
         } catch(e: RuntimeException) {
             // Callers only expect cancellation
             Log.e(TAG, "Transcription failed", e)
@@ -87,9 +94,20 @@ class TranscribeModel(
 
         val elapsed = SystemClock.elapsedRealtime() - start
         val audioMs = samples.size * 1000L / SAMPLE_RATE
-        Log.i(TAG, "Transcribed $audioMs ms of audio in $elapsed ms")
+        Log.i(TAG, "Transcribed $audioMs ms of audio in $elapsed ms (${glossary.size} glossary terms)")
 
         return@withContext text.trim()
+    }
+
+    private fun vocabularyBytes(glossary: List<String>): ByteArray? {
+        val terms = glossary.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.contains('\n') && it.toByteArray(Charsets.UTF_8).size <= MAX_TERM_BYTES }
+            .distinct()
+            .take(MAX_VOCABULARY_TERMS)
+            .toList()
+        if(terms.isEmpty()) return null
+        return terms.joinToString(separator = "\n").toByteArray(Charsets.UTF_8)
     }
 
     override fun cancel() {
