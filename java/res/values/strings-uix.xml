@@ -357,6 +357,7 @@
     <string name="resource_importer_import_title">Import - %1$s</string>
     <string name="resource_importer_error_wordlist_1">Error: This file appears to be a source wordlist (_wordlist.combined) instead of a compiled dictionary (.dict) file.</string>
     <string name="resource_importer_error_wordlist_2">Please download the compiled dictionary file, not the wordlist. If you made this wordlist yourself, compile it externally using dicttool.</string>
+    <string name="resource_importer_error_unconverted_parakeet">Error: This Parakeet model is in the parakeet.cpp format. Convert it with tools/convert-parakeet-cpp-gguf/convert.py, then import the converted file.</string>
     <string name="resource_importer_error_invalid_fiile">Error: This file could not be recognized. It may be invalid or it may have been corrupted. Try re-downloading it, or try a different file.</string>
     <string name="resource_importer_cancel_button">Cancel</string>
     <string name="resource_importer_import_button">Import</string>

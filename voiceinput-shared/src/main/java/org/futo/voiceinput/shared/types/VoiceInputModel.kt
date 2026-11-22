@@ -3,7 +3,7 @@ package org.futo.voiceinput.shared.types
 import org.futo.voiceinput.shared.ggml.BailLanguageException
 import org.futo.voiceinput.shared.ggml.InferenceCancelledException
 
-/** A loaded speech recognition model (Whisper, Whistle or Bark) */
+/** A loaded speech recognition model (Whisper, Whistle, Bark, or a GGUF model on transcribe.cpp) */
 interface VoiceInputModel {
     // empty languages = autodetect any language
     // 1 language = will force that language

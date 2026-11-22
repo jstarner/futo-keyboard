@@ -35,6 +35,13 @@ val ThirdPartyList: List<ThirdPartyItem> = listOf(
         License.MIT
     ),
     TP(
+        "transcribe.cpp",
+        "Runtime for GGUF speech models",
+        "https://github.com/handy-computer/transcribe.cpp",
+        "Copyright (c) 2026 The transcribe.cpp authors",
+        License.MIT
+    ),
+    TP(
         "mozc",
         "Japanese input powered by mozc",
         "https://github.com/google/mozc",

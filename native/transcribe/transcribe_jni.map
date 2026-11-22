@@ -1,0 +1,6 @@
+{
+    global:
+        Java_org_futo_voiceinput_shared_transcribe_*;
+    local:
+        *;
+};
