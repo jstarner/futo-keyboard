@@ -1,0 +1,58 @@
+Accept quantized conformer pointwise convs and Q2_K/Q3_K linear weights
+
+Fluid Speech Mini stores its encoder weights as Q2_K and Q4_K, pointwise convs
+included. Pointwise convs are already a mul_mat on the direct path, so keep a
+quantized kernel 2D [in, out] (a quantized row can't have ne0 = 1) and always
+take that path for it. F16/F32 kernels are unchanged.
+
+--- a/src/transcribe-weights-util.h
++++ b/src/transcribe-weights-util.h
+@@ -49,7 +49,7 @@
+ 
+ #define TRANSCRIBE_QUANT_LINEAR_TYPES                                                                             \
+     GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_BF16, GGML_TYPE_Q4_0, GGML_TYPE_Q4_1, GGML_TYPE_Q5_0, GGML_TYPE_Q5_1, \
+-        GGML_TYPE_Q8_0, GGML_TYPE_Q4_K, GGML_TYPE_Q5_K, GGML_TYPE_Q6_K
++        GGML_TYPE_Q8_0, GGML_TYPE_Q2_K, GGML_TYPE_Q3_K, GGML_TYPE_Q4_K, GGML_TYPE_Q5_K, GGML_TYPE_Q6_K
+ 
+ #define TRANSCRIBE_QUANT_CONV_TYPES GGML_TYPE_F32, GGML_TYPE_F16
+ 
+--- a/src/arch/parakeet/weights.cpp
++++ b/src/arch/parakeet/weights.cpp
+@@ -949,9 +949,23 @@
+         // back to d_model.
+         GET_F32(b.norm_conv_w, lname("enc.blocks.%d.norm_conv.weight", i), d_model);
+         GET_F32(b.norm_conv_b, lname("enc.blocks.%d.norm_conv.bias", i), d_model);
+-        GET_CONV(b.conv_pw1_w, lname("enc.blocks.%d.conv.pointwise1.weight", i), 1, d_model, 2 * d_model);
++        // A quantized pointwise kernel is stored 2D [d_model, out]: a quantized
++        // row can't have ne0 = 1. The encoder runs it as a direct mul_mat.
++        const auto pw_quantized = [&](const char * name) {
++            const ggml_tensor * t = ggml_get_tensor(ctx_meta, name);
++            return t != nullptr && ggml_is_quantized(t->type);
++        };
++        if (pw_quantized(lname("enc.blocks.%d.conv.pointwise1.weight", i))) {
++            GET_LIN(b.conv_pw1_w, lname("enc.blocks.%d.conv.pointwise1.weight", i), d_model, 2 * d_model);
++        } else {
++            GET_CONV(b.conv_pw1_w, lname("enc.blocks.%d.conv.pointwise1.weight", i), 1, d_model, 2 * d_model);
++        }
+         GET_CONV(b.conv_dw_w, lname("enc.blocks.%d.conv.depthwise.weight", i), k, 1, d_model);
+-        GET_CONV(b.conv_pw2_w, lname("enc.blocks.%d.conv.pointwise2.weight", i), 1, d_model, d_model);
++        if (pw_quantized(lname("enc.blocks.%d.conv.pointwise2.weight", i))) {
++            GET_LIN(b.conv_pw2_w, lname("enc.blocks.%d.conv.pointwise2.weight", i), d_model, d_model);
++        } else {
++            GET_CONV(b.conv_pw2_w, lname("enc.blocks.%d.conv.pointwise2.weight", i), 1, d_model, d_model);
++        }
+         GET_F32(b.conv_bn_w, lname("enc.blocks.%d.conv.bn.weight", i), d_model);
+         GET_F32(b.conv_bn_b, lname("enc.blocks.%d.conv.bn.bias", i), d_model);
+         if (hp.enc_conv_norm_type == ParakeetHParams::ConvNormType::BatchNorm) {
+--- a/src/conformer/conformer.cpp
++++ b/src/conformer/conformer.cpp
+@@ -367,7 +367,8 @@
+     // conv_pad_mask no longer broadcasts and ggml aborts. Force the
+     // batch-aware direct path at B > 1 regardless of backend policy or
+     // TRANSCRIBE_CONV_NO_DIRECT_PW (correctness beats the perf override).
+-    const bool direct_pw = policy.direct_pw || B > 1;
++    // Quantized pointwise kernels (2D) only work as a direct mul_mat.
++    const bool direct_pw = policy.direct_pw || B > 1 || ggml_is_quantized(b.conv_pw1_w->type);
+ 
+     if (direct_pw) {
+         // Pointwise conv 1 as direct mul_mat in [d_model, T, B] layout.

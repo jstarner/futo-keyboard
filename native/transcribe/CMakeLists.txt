@@ -19,6 +19,24 @@ set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 # transcribe_jni.cpp refuses to open a model on CPUs without these features
 set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
 
+# Local changes to transcribe.cpp, applied to the submodule checkout once (see patches/)
+find_package(Git REQUIRED)
+file(GLOB TRANSCRIBE_PATCHES ${CMAKE_CURRENT_SOURCE_DIR}/patches/*.patch)
+list(SORT TRANSCRIBE_PATCHES)
+foreach(patch ${TRANSCRIBE_PATCHES})
+    execute_process(COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${patch}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/transcribe.cpp
+            RESULT_VARIABLE already_applied OUTPUT_QUIET ERROR_QUIET)
+    if(NOT already_applied EQUAL 0)
+        execute_process(COMMAND ${GIT_EXECUTABLE} apply ${patch}
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/transcribe.cpp
+                RESULT_VARIABLE apply_result)
+        if(NOT apply_result EQUAL 0)
+            message(FATAL_ERROR "Could not apply ${patch} to transcribe.cpp")
+        endif()
+    endif()
+endforeach()
+
 # transcribe.cpp's public include path uses CMAKE_SOURCE_DIR, which assumes it is the top-level project
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/transcribe.cpp/include)
 
